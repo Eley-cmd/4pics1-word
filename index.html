@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PicSolve — Four Pictures, One Answer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   TOKENS
+   ========================================================= */
+:root{
+  --paper: #F6F3EC;
+  --paper-raised: #FBF9F4;
+  --ink: #23241F;
+  --ink-soft: #5B5D52;
+  --ink-faint: #A6A296;
+  --line: #D8D3C4;
+  --line-strong: #C2BCA9;
+
+  --science: #3F6B4F;
+  --science-tint: #E4EBE3;
+  --math: #3B5A8A;
+  --math-tint: #E4E9F2;
+  --history: #8A4A2E;
+  --history-tint: #F1E5DD;
+  --language: #6B4A8A;
+  --language-tint: #EBE4F1;
+
+  --gold: #C89B3C;
+  --gold-tint: #F6EDD8;
+  --wrong: #A8432F;
+  --wrong-tint: #F3E1DB;
+
+  --shadow-card: 0 1px 0 rgba(35,36,31,0.04), 0 8px 24px -12px rgba(35,36,31,0.22);
+  --shadow-tile: 0 1px 2px rgba(35,36,31,0.08), inset 0 -2px 0 rgba(35,36,31,0.06);
+  --radius-card: 14px;
+  --radius-tile: 8px;
+
+  --font-display: "Fraunces", serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+*{ box-sizing: border-box; }
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+html, body{
+  margin:0; padding:0;
+  min-height:100vh;
+  background:
+    radial-gradient(1200px 800px at 15% -10%, #FBF9F4 0%, transparent 55%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+body{
+  background-image:
+    radial-gradient(1200px 800px at 15% -10%, #FBF9F4 0%, transparent 55%),
+    repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(35,36,31,0.025) 28px),
+    var(--paper);
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  padding: 28px 16px 60px;
+}
+
+.app{
+  width:100%;
+  max-width: 640px;
+}
+
+/* =========================================================
+   HUD
+   ========================================================= */
+.hud{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:22px;
+  padding-bottom:14px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.hud-brand{
+  display:flex;
+  align-items:baseline;
+  gap:9px;
+}
+
+.hud-brand .mark{
+  font-family: var(--font-display);
+  font-weight:900;
+  font-size:1.5rem;
+  letter-spacing:-0.02em;
+  font-optical-sizing: auto;
+}
+
+.hud-brand .tag{
+  font-family: var(--font-mono);
+  font-size:0.62rem;
+  letter-spacing:0.09em;
+  color: var(--ink-faint);
+  text-transform:uppercase;
+}
+
+.hud-stats{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  font-family: var(--font-mono);
+  font-size:0.72rem;
+  letter-spacing:0.02em;
+}
+
+.hud-stat{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color: var(--ink-soft);
+  white-space:nowrap;
+}
+
+.hud-stat b{
+  color: var(--ink);
+  font-weight:600;
+}
+
+.hud-stat .dot{
+  width:5px; height:5px; border-radius:50%;
+  background: var(--gold);
+  display:inline-block;
+}
+
+.streak-flame{
+  color: var(--gold);
+  font-weight:600;
+}
+
+/* level progress rail */
+.level-rail{
+  margin-bottom: 24px;
+}
+.level-rail-top{
+  display:flex; justify-content:space-between; align-items:baseline;
+  font-family: var(--font-mono);
+  font-size:0.65rem;
+  color: var(--ink-faint);
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  margin-bottom:6px;
+}
+.level-rail-track{
+  height:5px;
+  background: var(--line);
+  border-radius:3px;
+  overflow:hidden;
+  position:relative;
+}
+.level-rail-fill{
+  height:100%;
+  background: linear-gradient(90deg, var(--gold), #DFB65A);
+  border-radius:3px;
+  transition: width 0.5s cubic-bezier(.4,0,.2,1);
+}
+
+/* =========================================================
+   SPECIMEN CARD
+   ========================================================= */
+.card-wrap{
+  position:relative;
+  margin-bottom: 22px;
+}
+
+.specimen-card{
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px 20px 22px;
+  position:relative;
+  overflow:hidden;
+}
+
+/* rotated tag, the "taped label" — signature element */
+.category-tag{
+  position:absolute;
+  top:16px;
+  right:14px;
+  transform: rotate(3.5deg);
+  padding: 5px 16px 5px 12px;
+  font-family: var(--font-mono);
+  font-size:0.66rem;
+  font-weight:600;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  border-radius: 3px 8px 8px 3px;
+  box-shadow: 0 3px 6px rgba(35,36,31,0.18), 0 1px 0 rgba(255,255,255,0.4) inset;
+  z-index:3;
+}
+.category-tag::before{
+  /* tape flick at left edge */
+  content:"";
+  position:absolute;
+  left:-3px; top:50%;
+  transform: translateY(-50%) rotate(45deg);
+  width:9px; height:9px;
+  background:inherit;
+  border-radius:1px;
+}
+
+.category-tag.science{ background: var(--science); color: #EFF4EE; }
+.category-tag.math{ background: var(--math); color: #EDF1F8; }
+.category-tag.history{ background: var(--history); color: #F7EEE7; }
+.category-tag.language{ background: var(--language); color: #F2EDF7; }
+
+.specimen-index{
+  font-family: var(--font-mono);
+  font-size:0.62rem;
+  color: var(--ink-faint);
+  letter-spacing:0.06em;
+  margin-bottom:12px;
+}
+
+/* 2x2 image grid */
+.image-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:8px;
+  margin-bottom:18px;
+}
+
+.image-cell{
+  aspect-ratio: 1 / 1;
+  background: var(--paper);
+  border-radius: 8px;
+  overflow:hidden;
+  position:relative;
+  border: 1px solid rgba(35,36,31,0.08);
+}
+
+.image-cell svg{
+  width:100%; height:100%;
+  display:block;
+}
+
+.image-cell .cell-caption{
+  position:absolute;
+  left:0; right:0; bottom:0;
+  padding: 4px 7px 5px;
+  font-family: var(--font-mono);
+  font-size:0.56rem;
+  letter-spacing:0.03em;
+  color: rgba(255,255,255,0.92);
+  background: linear-gradient(0deg, rgba(35,36,31,0.55), rgba(35,36,31,0));
+  text-transform: lowercase;
+  pointer-events:none;
+}
+
+/* =========================================================
+   ANSWER TILES
+   ========================================================= */
+.answer-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  justify-content:center;
+  margin-bottom:18px;
+  min-height:44px;
+}
+
+.answer-slot{
+  width:34px; height:38px;
+  border-bottom: 2.5px solid var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  font-family: var(--font-display);
+  font-weight:700;
+  font-size:1.2rem;
+  color: var(--ink);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.answer-slot.filled{
+  animation: tile-pop 0.18s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes tile-pop{
+  0%{ transform: scale(0.7); }
+  100%{ transform: scale(1); }
+}
+
+.answer-slot.correct-flash{ border-color: var(--science); color: var(--science); }
+.answer-slot.wrong-flash{ border-color: var(--wrong); color: var(--wrong); animation: shake 0.4s ease; }
+
+@keyframes shake{
+  0%,100%{ transform: translateX(0); }
+  20%{ transform: translateX(-4px); }
+  40%{ transform: translateX(4px); }
+  60%{ transform: translateX(-3px); }
+  80%{ transform: translateX(3px); }
+}
+
+.letter-bank{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:center;
+  margin-bottom:22px;
+}
+
+.letter-tile{
+  width:40px; height:44px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-tile);
+  box-shadow: var(--shadow-tile);
+  font-family: var(--font-body);
+  font-weight:700;
+  font-size:1.05rem;
+  color: var(--ink);
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.letter-tile:hover:not(:disabled){
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(35,36,31,0.14);
+}
+.letter-tile:active:not(:disabled){
+  transform: translateY(0);
+}
+.letter-tile:disabled{
+  opacity:0.28;
+  cursor:default;
+}
+.letter-tile:focus-visible{
+  outline: 2px solid var(--math);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+.action-row{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+}
+
+.btn{
+  font-family: var(--font-body);
+  font-weight:700;
+  font-size:0.85rem;
+  padding: 11px 22px;
+  border-radius: 999px;
+  border: none;
+  cursor:pointer;
+  letter-spacing:0.01em;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+.btn:focus-visible{ outline: 2px solid var(--ink); outline-offset:2px; }
+.btn:disabled{ opacity:0.4; cursor:default; }
+
+.btn-primary{
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 0 3px 0 #050600, 0 5px 10px rgba(35,36,31,0.2);
+}
+.btn-primary:hover:not(:disabled){ transform: translateY(-1px); }
+.btn-primary:active:not(:disabled){ transform: translateY(2px); box-shadow: 0 1px 0 #050600; }
+
+.btn-ghost{
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1.5px solid var(--line-strong);
+}
+.btn-ghost:hover:not(:disabled){ border-color: var(--ink); color: var(--ink); }
+
+.btn-clear{
+  background: transparent;
+  color: var(--ink-faint);
+  font-size:0.72rem;
+  text-decoration: underline;
+  text-underline-offset:3px;
+  padding: 6px 4px;
+}
+
+.utility-row{
+  display:flex;
+  justify-content:center;
+  margin-top:10px;
+}
+
+/* =========================================================
+   HINT
+   ========================================================= */
+.hint-box{
+  text-align:center;
+  font-family: var(--font-mono);
+  font-size:0.74rem;
+  color: var(--ink-soft);
+  background: var(--gold-tint);
+  border: 1px dashed var(--gold);
+  border-radius:8px;
+  padding:9px 14px;
+  margin-bottom:16px;
+  display:none;
+}
+.hint-box.visible{ display:block; }
+
+/* =========================================================
+   STAMP REVEAL — signature moment
+   ========================================================= */
+.reveal-overlay{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+  z-index:5;
+  opacity:0;
+}
+.reveal-overlay.show{
+  opacity:1;
+  animation: overlay-in 0.15s ease;
+}
+@keyframes overlay-in{ from{ opacity:0; } to{ opacity:1; } }
+
+.stamp{
+  font-family: var(--font-display);
+  font-weight:900;
+  font-size:2.1rem;
+  text-transform:uppercase;
+  letter-spacing:0.03em;
+  padding: 10px 26px;
+  border: 5px solid currentColor;
+  border-radius:10px;
+  background: rgba(251,249,244,0.88);
+  transform: rotate(-8deg) scale(2.4);
+  opacity:0;
+}
+.stamp.correct{ color: var(--science); }
+.stamp.wrong{ color: var(--wrong); }
+
+.stamp.slam{
+  animation: stamp-slam 0.42s cubic-bezier(.2,.9,.3,1.1) forwards;
+}
+@keyframes stamp-slam{
+  0%{ transform: rotate(-8deg) scale(2.4); opacity:0; }
+  60%{ transform: rotate(-8deg) scale(0.92); opacity:1; }
+  80%{ transform: rotate(-8deg) scale(1.05); }
+  100%{ transform: rotate(-8deg) scale(1); opacity:1; }
+}
+
+/* explanation drawer, slides out beneath the stamp like a catalog entry */
+.explain-drawer{
+  max-height:0;
+  overflow:hidden;
+  transition: max-height 0.4s cubic-bezier(.4,0,.2,1);
+  border-top: 1px solid transparent;
+}
+.explain-drawer.open{
+  max-height: 260px;
+  border-top: 1px dashed var(--line-strong);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.explain-answer{
+  font-family: var(--font-display);
+  font-weight:700;
+  font-size:1.4rem;
+  margin: 0 0 6px;
+  letter-spacing:-0.01em;
+}
+.explain-answer .science-color{ color: var(--science); }
+.explain-answer .math-color{ color: var(--math); }
+.explain-answer .history-color{ color: var(--history); }
+.explain-answer .language-color{ color: var(--language); }
+
+.explain-text{
+  font-size:0.88rem;
+  line-height:1.55;
+  color: var(--ink-soft);
+  margin: 0 0 16px;
+}
+
+.explain-actions{
+  display:flex;
+  justify-content:center;
+}
+
+/* =========================================================
+   TOAST (points popup)
+   ========================================================= */
+.point-toast{
+  position:fixed;
+  top:22px;
+  left:50%;
+  transform: translateX(-50%) translateY(-10px);
+  background: var(--ink);
+  color: var(--gold-tint);
+  font-family: var(--font-mono);
+  font-weight:600;
+  font-size:0.78rem;
+  padding: 9px 18px;
+  border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(35,36,31,0.28);
+  opacity:0;
+  z-index:20;
+  pointer-events:none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.point-toast.show{
+  opacity:1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* =========================================================
+   LEVEL UP MODAL
+   ========================================================= */
+.modal-scrim{
+  position:fixed; inset:0;
+  background: rgba(35,36,31,0.5);
+  display:none;
+  align-items:center; justify-content:center;
+  z-index:30;
+  padding:20px;
+}
+.modal-scrim.show{ display:flex; }
+
+.modal-card{
+  background: var(--paper-raised);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  padding: 30px 26px;
+  max-width: 340px;
+  width:100%;
+  text-align:center;
+  box-shadow: 0 20px 50px rgba(35,36,31,0.35);
+  animation: modal-in 0.32s cubic-bezier(.2,.9,.3,1.1);
+}
+@keyframes modal-in{
+  0%{ transform: scale(0.85) translateY(10px); opacity:0; }
+  100%{ transform: scale(1) translateY(0); opacity:1; }
+}
+
+.modal-card .badge-ring{
+  width:64px; height:64px;
+  border-radius:50%;
+  border: 3px solid var(--gold);
+  display:flex; align-items:center; justify-content:center;
+  margin: 0 auto 14px;
+  font-family: var(--font-mono);
+  font-weight:600;
+  font-size:1.4rem;
+  color: var(--gold);
+}
+
+.modal-card h2{
+  font-family: var(--font-display);
+  font-size:1.5rem;
+  margin: 0 0 6px;
+}
+.modal-card p{
+  font-size:0.85rem;
+  color: var(--ink-soft);
+  margin: 0 0 20px;
+  line-height:1.5;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 420px){
+  .specimen-card{ padding:16px 14px 18px; }
+  .letter-tile{ width:34px; height:40px; font-size:0.95rem; }
+  .answer-slot{ width:28px; height:34px; font-size:1.05rem; }
+  .hud-stats{ font-size:0.65rem; gap:10px; }
+  .stamp{ font-size:1.5rem; padding:8px 18px; }
+  .image-cell .cell-caption{ font-size:0.5rem; }
+}
+
+.sr-only{
+  position:absolute;
+  width:1px; height:1px;
+  padding:0; margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-brand">
+      <span class="mark">PicSolve</span>
+      <span class="tag">Field Notebook Ed.</span>
+    </div>
+    <div class="hud-stats">
+      <span class="hud-stat"><span class="dot"></span><b id="pointsDisplay">0</b>&nbsp;pts</span>
+      <span class="hud-stat streak-flame" id="streakDisplay">🔥 0</span>
+    </div>
+  </div>
+
+  <!-- Level progress -->
+  <div class="level-rail">
+    <div class="level-rail-top">
+      <span id="levelLabel">Level 1</span>
+      <span id="levelProgressLabel">0 / 3 solved</span>
+    </div>
+    <div class="level-rail-track">
+      <div class="level-rail-fill" id="levelFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Specimen card / puzzle -->
+  <div class="card-wrap" id="cardWrap">
+    <div class="specimen-card" id="specimenCard">
+
+      <span class="category-tag" id="categoryTag">Science</span>
+
+      <div class="specimen-index" id="specimenIndex">SPECIMEN NO. 001</div>
+
+      <div class="image-grid" id="imageGrid">
+        <!-- 4 SVG clue cells injected by JS -->
+      </div>
+
+      <div class="answer-row" id="answerRow"></div>
+
+      <div class="hint-box" id="hintBox"></div>
+
+      <div class="letter-bank" id="letterBank"></div>
+
+      <div class="action-row">
+        <button class="btn btn-ghost" id="hintBtn" type="button">Get a hint</button>
+        <button class="btn btn-primary" id="submitBtn" type="button" disabled>Submit</button>
+      </div>
+      <div class="utility-row">
+        <button class="btn btn-clear" id="clearBtn" type="button">Clear letters</button>
+      </div>
+
+      <!-- explanation drawer -->
+      <div class="explain-drawer" id="explainDrawer">
+        <div class="explain-answer" id="explainAnswer"></div>
+        <p class="explain-text" id="explainText"></p>
+        <div class="explain-actions">
+          <button class="btn btn-primary" id="nextBtn" type="button">Next specimen →</button>
+        </div>
+      </div>
+
+      <!-- stamp overlay -->
+      <div class="reveal-overlay" id="revealOverlay">
+        <div class="stamp" id="stampEl">Correct</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- points toast -->
+<div class="point-toast" id="pointToast">+10 pts</div>
+
+<!-- level up modal -->
+<div class="modal-scrim" id="levelUpScrim">
+  <div class="modal-card">
+    <div class="badge-ring" id="levelUpBadge">2</div>
+    <h2>Level up!</h2>
+    <p id="levelUpText">You've reached Level 2. New categories unlocked.</p>
+    <button class="btn btn-primary" id="levelUpContinue" type="button">Continue</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================
+     CLUE ART LIBRARY
+     ---------------------------------------------------------
+     The old build pointed each cell at picsum.photos/seed/N —
+     a keyless placeholder API that returns a RANDOM stock photo
+     per seed. It has no keyword search, so "leaf close up" and
+     "sunlight through trees" rendered as two unrelated stranger
+     photos (a truck, a doorway, whatever the seed landed on).
+     Every clue looked wrong because every clue WAS wrong — the
+     picture never matched the word.
+
+     There's no free, keyless, reliable image-search API that
+     will hand back "leaf close up" on demand, so the actual fix
+     is to stop faking a photo fetch and draw the clue directly:
+     a small library of hand-built SVG icons, one per keyword,
+     rendered inline. Every clue now shows exactly what it says,
+     loads instantly (no network round trip, nothing to time out
+     or 404), and matches the paper/field-notebook aesthetic
+     better than stock photography would have.
+     ========================================================= */
+  const ICONS = {
+    // --- science ---
+    "leaf close up": (c) => `<path d="M60 108C40 96 32 70 42 46c8-18 26-30 48-30 4 22-2 44-16 60-10 12-20 24-14 32z" fill="${c.mid}"/><path d="M90 16C68 16 50 28 42 46" stroke="${c.ink}" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M55 95C60 78 62 60 78 40" stroke="${c.ink}" stroke-width="2" fill="none" stroke-linecap="round" opacity=".55"/><path d="M46 70c8 2 16 0 22-6M42 55c7 3 15 2 21-3" stroke="${c.ink}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".45"/>`,
+    "sunlight through trees": (c) => `<circle cx="96" cy="30" r="14" fill="${c.gold}"/><path d="M96 8v8M96 44v8M74 30h8M110 30h8M80 14l6 6M106 40l6 6M112 14l-6 6M86 40l-6 6" stroke="${c.gold}" stroke-width="2.5" stroke-linecap="round"/><path d="M20 120 L34 40 L48 120 Z" fill="${c.dark}"/><path d="M50 120 L62 55 L74 120 Z" fill="${c.mid}"/><path d="M78 120 L90 35 L104 120 Z" fill="${c.dark}" opacity=".85"/><line x1="10" y1="120" x2="118" y2="120" stroke="${c.ink}" stroke-width="2"/>`,
+    "water droplet": (c) => `<path d="M60 18c16 22 26 40 26 56a26 26 0 1 1-52 0c0-16 10-34 26-56z" fill="${c.blue}"/><ellipse cx="50" cy="70" rx="6" ry="9" fill="#fff" opacity=".55"/><path d="M34 74a26 26 0 0 0 26 26" stroke="${c.ink}" stroke-width="1.6" fill="none" opacity=".3"/>`,
+    "soil garden": (c) => `<rect x="14" y="78" width="100" height="34" rx="4" fill="${c.dark}"/><path d="M14 78 Q30 70 46 78 T78 78 T110 78 L114 78 L114 90 L14 90 Z" fill="${c.mid}"/><circle cx="34" cy="82" r="2.5" fill="${c.ink}" opacity=".5"/><circle cx="58" cy="86" r="2" fill="${c.ink}" opacity=".5"/><circle cx="82" cy="83" r="2.5" fill="${c.ink}" opacity=".5"/><circle cx="98" cy="87" r="2" fill="${c.ink}" opacity=".5"/><path d="M40 78c0-14 6-20 6-20M70 78c2-12-4-22-4-22M92 78c-2-10 4-18 4-18" stroke="${c.science}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
+    "lava flow": (c) => `<path d="M20 120 L46 40 L74 40 L100 120 Z" fill="${c.dark}"/><path d="M50 120 C46 96 58 82 60 60 C62 82 74 96 70 120 Z" fill="${c.wrong}"/><path d="M40 120 C38 104 46 96 46 84" stroke="${c.gold}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M78 120 C80 102 72 94 72 82" stroke="${c.gold}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+    "mountain smoke": (c) => `<path d="M8 116 L46 44 L64 76 L82 40 L120 116 Z" fill="${c.dark}"/><path d="M46 44 L54 58 L38 58 Z" fill="#fff" opacity=".85"/><path d="M82 40 L88 52 L76 52 Z" fill="#fff" opacity=".85"/><path d="M64 40c4-10 0-18 6-24 4 8 10 10 8 20-2 8-10 10-14 4z" fill="${c.ink}" opacity=".28"/><path d="M70 14c3-7-1-13 4-18" stroke="${c.ink}" stroke-width="2" opacity=".25" fill="none"/>`,
+    "ash cloud": (c) => `<ellipse cx="60" cy="66" rx="46" ry="26" fill="${c.ink}" opacity=".55"/><ellipse cx="34" cy="58" rx="24" ry="18" fill="${c.ink}" opacity=".45"/><ellipse cx="88" cy="60" rx="26" ry="20" fill="${c.ink}" opacity=".4"/><path d="M40 100 L48 118 M58 98 L60 120 M76 100 L70 118" stroke="${c.ink}" stroke-width="2.5" stroke-linecap="round" opacity=".35"/>`,
+    "molten rock": (c) => `<path d="M18 78c8-14 20-8 30-18s10-22 26-20 18 16 30 14 16 10 8 22-24 6-34 16-14 20-30 16-38-16-30-30z" fill="${c.wrong}"/><path d="M30 66c8-10 18-6 26-14" stroke="${c.gold}" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".8"/><path d="M52 84c8-6 14-14 24-12" stroke="${c.gold}" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".8"/>`,
+    "apple falling": (c) => `<circle cx="60" cy="70" r="26" fill="${c.wrong}"/><path d="M60 44c0-8 4-12 10-14" stroke="${c.dark}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M64 46c6-4 12-2 14 4" fill="${c.science}"/><line x1="60" y1="20" x2="60" y2="36" stroke="${c.ink}" stroke-width="1.5" stroke-dasharray="3 4" opacity=".4"/><path d="M28 108 h64" stroke="${c.ink}" stroke-width="2" opacity=".3"/><path d="M50 100l-4 8M70 100l4 8" stroke="${c.ink}" stroke-width="1.5" opacity=".3"/>`,
+    "planet orbit": (c) => `<circle cx="60" cy="66" r="20" fill="${c.blue}"/><path d="M60 66m-38 0a38 14 0 1 0 76 0a38 14 0 1 0 -76 0" stroke="${c.gold}" stroke-width="2" fill="none" opacity=".7"/><circle cx="98" cy="66" r="4" fill="${c.gold}"/><circle cx="30" cy="50" r="1.6" fill="${c.ink}" opacity=".4"/><circle cx="94" cy="30" r="1.6" fill="${c.ink}" opacity=".4"/><circle cx="18" cy="90" r="1.6" fill="${c.ink}" opacity=".4"/>`,
+    "falling water": (c) => `<path d="M40 14 C42 40 30 54 30 76a18 18 0 0 0 36 0c0-16-10-28-14-44" fill="${c.blue}"/><path d="M70 30 C72 50 62 60 62 78a14 14 0 0 0 28 0c0-14-8-24-12-36" fill="${c.blue}" opacity=".75"/><line x1="10" y1="98" x2="110" y2="98" stroke="${c.ink}" stroke-width="2" opacity=".3"/>`,
+    "astronaut floating": (c) => `<circle cx="60" cy="52" r="18" fill="#EDEEE8"/><circle cx="60" cy="52" r="12" fill="${c.blue}" opacity=".5"/><path d="M60 70c-16 0-24 12-22 30h44c2-18-6-30-22-30z" fill="#EDEEE8"/><circle cx="26" cy="30" r="1.6" fill="${c.ink}" opacity=".5"/><circle cx="98" cy="24" r="1.6" fill="${c.ink}" opacity=".5"/><circle cx="94" cy="90" r="1.6" fill="${c.ink}" opacity=".5"/><circle cx="18" cy="80" r="1.6" fill="${c.ink}" opacity=".5"/>`,
+    "brick wall texture": (c) => `<g fill="none" stroke="${c.dark}" stroke-width="2"><rect x="6" y="10" width="30" height="16" fill="${c.history}"/><rect x="36" y="10" width="30" height="16" fill="${c.history}"/><rect x="66" y="10" width="30" height="16" fill="${c.history}"/><rect x="96" y="10" width="20" height="16" fill="${c.history}"/><rect x="21" y="26" width="30" height="16" fill="${c.history}" opacity=".85"/><rect x="51" y="26" width="30" height="16" fill="${c.history}" opacity=".85"/><rect x="81" y="26" width="30" height="16" fill="${c.history}" opacity=".85"/><rect x="6" y="42" width="15" height="16" fill="${c.history}" opacity=".7"/><rect x="21" y="42" width="30" height="16" fill="${c.history}" opacity=".7"/><rect x="51" y="42" width="30" height="16" fill="${c.history}" opacity=".7"/><rect x="81" y="42" width="30" height="16" fill="${c.history}" opacity=".7"/></g>`,
+    "zebra stripes": (c) => `<ellipse cx="60" cy="66" rx="44" ry="30" fill="#fff"/><path d="M24 46c4 10 4 18 0 30M40 40c5 12 5 24 0 40M58 38c5 14 5 28 0 46M76 40c5 12 5 24 0 40M94 46c4 10 4 18 0 30" stroke="${c.ink}" stroke-width="6" stroke-linecap="round"/>`,
+    "tile floor geometric": (c) => `<g stroke="${c.math}" stroke-width="1.6" fill="none"><rect x="10" y="10" width="100" height="100"/><line x1="10" y1="35" x2="110" y2="35"/><line x1="10" y1="60" x2="110" y2="60"/><line x1="10" y1="85" x2="110" y2="85"/><line x1="35" y1="10" x2="35" y2="110"/><line x1="60" y1="10" x2="60" y2="110"/><line x1="85" y1="10" x2="85" y2="110"/></g><circle cx="35" cy="35" r="9" fill="${c.math}" opacity=".5"/><circle cx="85" cy="60" r="9" fill="${c.math}" opacity=".5"/><circle cx="60" cy="85" r="9" fill="${c.math}" opacity=".5"/>`,
+    "honeycomb": (c) => {
+      const hex=(x,y,r)=>{const p=[];for(let i=0;i<6;i++){const a=Math.PI/3*i-Math.PI/6;p.push(`${x+r*Math.cos(a)},${y+r*Math.sin(a)}`);}return `<polygon points="${p.join(' ')}" fill="${c.gold}" stroke="${c.dark}" stroke-width="1.5"/>`;};
+      let s=""; const r=16; const dx=r*1.73; const dy=r*1.5;
+      for(let row=0;row<4;row++){ for(let col=0;col<4;col++){ const x=14+col*dx+(row%2?dx/2:0); const y=6+row*dy; if(x<120&&y<120) s+=hex(x,y,r); } }
+      return s;
+    },
+    "pattern": (c) => `<g fill="${c.math}"><circle cx="24" cy="24" r="8"/><circle cx="60" cy="24" r="8"/><circle cx="96" cy="24" r="8"/><circle cx="24" cy="60" r="8" opacity=".55"/><circle cx="60" cy="60" r="8" opacity=".55"/><circle cx="96" cy="60" r="8" opacity=".55"/><circle cx="24" cy="96" r="8" opacity=".3"/><circle cx="60" cy="96" r="8" opacity=".3"/><circle cx="96" cy="96" r="8" opacity=".3"/></g>`,
+    // --- history ---
+    "egypt desert monument": (c) => `<path d="M30 108 L60 34 L90 108 Z" fill="${c.gold}"/><path d="M60 34 L90 108 L60 108 Z" fill="${c.history}" opacity=".55"/><path d="M15 108h90" stroke="${c.ink}" stroke-width="2" opacity=".35"/><path d="M20 100 q10 -4 20 0 t20 0 t20 0 t20 0" stroke="${c.ink}" stroke-width="1.4" fill="none" opacity=".25"/>`,
+    "ancient stone structure": (c) => `<rect x="16" y="86" width="88" height="14" fill="${c.history}"/><rect x="24" y="70" width="72" height="14" fill="${c.history}" opacity=".9"/><rect x="32" y="54" width="56" height="14" fill="${c.history}" opacity=".8"/><rect x="40" y="38" width="40" height="14" fill="${c.history}" opacity=".7"/><rect x="48" y="24" width="24" height="12" fill="${c.history}" opacity=".6"/>`,
+    "sphinx statue": (c) => `<ellipse cx="60" cy="96" rx="46" ry="10" fill="${c.dark}" opacity=".3"/><rect x="20" y="70" width="80" height="22" rx="4" fill="${c.gold}"/><path d="M76 30c14 0 22 12 22 26 0 10-6 16-14 18H70c-6-2-10-8-10-16 0-16 6-28 16-28z" fill="${c.gold}"/><rect x="86" y="52" width="6" height="14" fill="${c.ink}" opacity=".6"/><rect x="98" y="52" width="6" height="14" fill="${c.ink}" opacity=".6"/><path d="M92 30c8-4 16-2 20 4" stroke="${c.history}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+    "hieroglyphics wall": (c) => `<rect x="8" y="8" width="104" height="104" rx="3" fill="${c.gold_tint||c.history}" opacity=".2"/><g stroke="${c.history}" stroke-width="2.4" fill="none" stroke-linecap="round"><path d="M20 24h14M27 24v16M20 46a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M50 20v24M44 26l12 0M44 34l12 0"/><path d="M74 18c6 0 10 4 10 10s-4 10-10 10"/><rect x="92" y="18" width="16" height="20"/><path d="M18 66h20M18 74h20M18 82h20"/><circle cx="60" cy="72" r="9"/><path d="M60 63v18M51 72h18"/><path d="M86 60l14 20M100 60l-14 20"/></g>`,
+    "old sailing ship": (c) => `<path d="M20 92 L100 92 L88 106 L32 106 Z" fill="${c.history}"/><line x1="60" y1="20" x2="60" y2="92" stroke="${c.dark}" stroke-width="3"/><path d="M60 26 L96 50 L60 58 Z" fill="${c.gold}"/><path d="M60 34 L30 54 L60 62 Z" fill="#fff" opacity=".85"/><path d="M10 92c20 8 80 8 100 0" stroke="${c.blue}" stroke-width="3" fill="none"/>`,
+    "antique compass map": (c) => `<circle cx="60" cy="60" r="42" fill="none" stroke="${c.history}" stroke-width="2.5"/><circle cx="60" cy="60" r="3" fill="${c.history}"/><path d="M60 22 L68 56 L60 60 L52 56 Z" fill="${c.wrong}"/><path d="M60 98 L52 64 L60 60 L68 64 Z" fill="${c.ink}" opacity=".7"/><text x="60" y="14" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="${c.history}">N</text>`,
+    "world globe vintage": (c) => `<circle cx="60" cy="60" r="40" fill="${c.blue}" opacity=".35" stroke="${c.history}" stroke-width="2.5"/><path d="M60 20a40 40 0 0 0 0 80" stroke="${c.history}" stroke-width="1.6" fill="none" opacity=".6"/><ellipse cx="60" cy="60" rx="40" ry="16" stroke="${c.history}" stroke-width="1.6" fill="none" opacity=".6"/><path d="M34 40c6 8 4 18-2 24s0 16 8 18" stroke="${c.history}" stroke-width="3" fill="none" opacity=".7" stroke-linecap="round"/><path d="M78 36c-4 10 4 16 10 24" stroke="${c.history}" stroke-width="3" fill="none" opacity=".7" stroke-linecap="round"/>`,
+    "telescope ocean": (c) => `<rect x="52" y="30" width="14" height="52" rx="6" transform="rotate(-25 59 56)" fill="${c.ink}"/><circle cx="42" cy="30" r="7" fill="${c.gold}"/><path d="M8 94h104" stroke="${c.blue}" stroke-width="3"/><path d="M8 94c20-16 30 16 50 0s34 12 54-2" stroke="${c.blue}" stroke-width="2" fill="none" opacity=".6"/>`,
+    "medieval fortress": (c) => `<rect x="16" y="60" width="88" height="46" fill="${c.history}"/><rect x="14" y="46" width="16" height="18" fill="${c.history}"/><rect x="52" y="42" width="16" height="22" fill="${c.history}"/><rect x="90" y="46" width="16" height="18" fill="${c.history}"/><path d="M14 46h6v-8h4v8h6v-8h4v8h4M52 42h4v-8h4v8h4v-8h4v8h4M90 46h4v-8h4v8h4v-8h4v8h4" stroke="${c.dark}" stroke-width="2" fill="none"/><rect x="52" y="80" width="16" height="26" rx="8 8 0 0" fill="${c.dark}" opacity=".7"/>`,
+    "stone tower europe": (c) => `<rect x="42" y="30" width="36" height="80" fill="${c.history}"/><path d="M42 30 L60 8 L78 30 Z" fill="${c.dark}"/><rect x="52" y="52" width="16" height="20" fill="${c.dark}" opacity=".6"/><rect x="38" y="26" width="8" height="10" fill="${c.history}"/><rect x="74" y="26" width="8" height="10" fill="${c.history}"/><rect x="30" y="30" width="8" height="10" fill="${c.history}" opacity=".8"/><rect x="82" y="30" width="8" height="10" fill="${c.history}" opacity=".8"/>`,
+    "drawbridge moat": (c) => `<rect x="0" y="86" width="120" height="20" fill="${c.blue}" opacity=".5"/><rect x="20" y="40" width="80" height="46" fill="${c.history}"/><path d="M50 86 L50 50 L70 50 L70 86 Z" fill="${c.dark}" opacity=".5"/><path d="M50 50 L20 66" stroke="${c.gold}" stroke-width="4" stroke-linecap="round"/><path d="M70 50 L100 66" stroke="${c.gold}" stroke-width="4" stroke-linecap="round"/><rect x="16" y="30" width="10" height="12" fill="${c.history}"/><rect x="94" y="30" width="10" height="12" fill="${c.history}"/>`,
+    "knight armor": (c) => `<ellipse cx="60" cy="30" rx="16" ry="18" fill="${c.ink_faint||'#9AA0A6'}"/><rect x="52" y="20" width="16" height="6" fill="${c.dark}"/><path d="M40 50c-4 20 0 40 8 52h24c8-12 12-32 8-52-10-8-30-8-40 0z" fill="${c.ink_faint||'#9AA0A6'}"/><path d="M60 50v52M40 66h40" stroke="${c.dark}" stroke-width="2" opacity=".5"/><rect x="82" y="46" width="6" height="40" rx="3" fill="${c.gold}"/>`,
+    "two people talking": (c) => `<circle cx="36" cy="42" r="16" fill="${c.language}"/><path d="M14 96c2-20 14-30 22-30s20 10 22 30z" fill="${c.language}"/><circle cx="88" cy="46" r="14" fill="${c.gold}"/><path d="M68 96c2-18 12-26 20-26s18 8 20 26z" fill="${c.gold}"/><path d="M56 58c6 4 6 10 12 12" stroke="${c.ink}" stroke-width="2" fill="none" opacity=".4"/>`,
+    "speech bubble chat": (c) => `<rect x="10" y="16" width="70" height="42" rx="14" fill="${c.language}"/><path d="M24 58 L20 74 L42 58 Z" fill="${c.language}"/><rect x="42" y="62" width="66" height="38" rx="14" fill="${c.gold}"/><path d="M96 100 L102 114 L78 100 Z" fill="${c.gold}"/><circle cx="32" cy="37" r="3.5" fill="#fff"/><circle cx="46" cy="37" r="3.5" fill="#fff"/><circle cx="60" cy="37" r="3.5" fill="#fff"/>`,
+    "microphone conversation": (c) => `<rect x="50" y="14" width="20" height="40" rx="10" fill="${c.language}"/><path d="M38 42a22 22 0 0 0 44 0" stroke="${c.ink}" stroke-width="3" fill="none" stroke-linecap="round"/><line x1="60" y1="64" x2="60" y2="84" stroke="${c.ink}" stroke-width="3"/><line x1="42" y1="84" x2="78" y2="84" stroke="${c.ink}" stroke-width="3" stroke-linecap="round"/>`,
+    "open quotation marks": (c) => `<text x="10" y="88" font-family="Fraunces" font-weight="900" font-size="100" fill="${c.language}">&#8220;</text>`,
+    "old wise elder": (c) => `<circle cx="60" cy="40" r="20" fill="${c.gold}" opacity=".7"/><path d="M40 40c0 14 26 20 40 6" stroke="${c.ink}" stroke-width="3" fill="none" stroke-linecap="round" opacity=".5"/><path d="M30 102c2-24 16-36 30-36s28 12 30 36z" fill="${c.language}"/><path d="M44 30c4-10 28-10 32 0" stroke="${c.ink}" stroke-width="2" fill="none" opacity=".4"/>`,
+    "sunrise wisdom": (c) => `<circle cx="60" cy="76" r="24" fill="${c.gold}"/><line x1="10" y1="96" x2="110" y2="96" stroke="${c.ink}" stroke-width="2" opacity=".3"/><path d="M60 40v-14M34 52l-10-10M86 52l10-10M24 76H10M96 76h14" stroke="${c.gold}" stroke-width="3" stroke-linecap="round"/>`,
+    "ancient scroll": (c) => `<rect x="20" y="30" width="80" height="60" fill="${c.gold_tint||'#F6EDD8'}" stroke="${c.history}" stroke-width="2"/><circle cx="20" cy="30" r="8" fill="${c.history}"/><circle cx="20" cy="90" r="8" fill="${c.history}"/><circle cx="100" cy="30" r="8" fill="${c.history}"/><circle cx="100" cy="90" r="8" fill="${c.history}"/><line x1="34" y1="44" x2="86" y2="44" stroke="${c.ink}" stroke-width="1.6" opacity=".5"/><line x1="34" y1="54" x2="86" y2="54" stroke="${c.ink}" stroke-width="1.6" opacity=".5"/><line x1="34" y1="64" x2="72" y2="64" stroke="${c.ink}" stroke-width="1.6" opacity=".5"/>`,
+    "handshake agreement": (c) => `<path d="M14 58 L44 58 L58 48 L70 58 L106 58" stroke="${c.ink}" stroke-width="2" fill="none" opacity=".2"/><path d="M18 46c10-6 22-6 30 2l12 10-12 10c-8 8-20 8-30 2z" fill="${c.language}"/><path d="M102 46c-10-6-22-6-30 2l-12 10 12 10c8 8 20 8 30 2z" fill="${c.gold}"/><rect x="52" y="52" width="16" height="14" rx="4" fill="${c.ink}" opacity=".7"/>`,
+    "picture book": (c) => `<path d="M14 24c16-6 32-6 46 2v66c-14-8-30-8-46-2z" fill="${c.language}"/><path d="M106 24c-16-6-32-6-46 2v66c14-8 30-8 46-2z" fill="${c.gold}"/><line x1="60" y1="26" x2="60" y2="92" stroke="${c.ink}" stroke-width="2" opacity=".4"/>`,
+    "burning candle flame": (c) => `<rect x="52" y="60" width="16" height="46" fill="${c.gold_tint||'#F6EDD8'}"/><ellipse cx="60" cy="106" rx="18" ry="4" fill="${c.ink}" opacity=".15"/><path d="M60 20c8 10 10 20 4 28-4 5-4 10 0 14 6-4 10-12 6-22 10 8 12 22 4 32-10 12-28 6-28-6 0-14 8-26 14-46z" fill="${c.gold}"/><path d="M60 40c3 6 3 12-1 16" stroke="${c.wrong}" stroke-width="2" fill="none" opacity=".6"/>`,
+    "heart shaped stone": (c) => `<path d="M60 100C30 78 16 58 16 40a20 20 0 0 1 38-8 20 20 0 0 1 38 8c0 18-14 38-32 60z" fill="${c.wrong}" opacity=".85"/><path d="M30 40c2 10 10 18 10 18" stroke="#fff" stroke-width="2" opacity=".4" fill="none" stroke-linecap="round"/>`,
+    "stormy ocean waves": (c) => `<rect x="0" y="0" width="120" height="70" fill="${c.ink}" opacity=".35"/><path d="M0 78c14-10 26 8 40-2s26 10 40 0 26 8 40-2v46H0z" fill="${c.blue}"/><path d="M6 6l8 10M100 10l8 10M50 2l6 12" stroke="${c.gold}" stroke-width="2" opacity=".7" stroke-linecap="round"/>`,
+    "open book pages": (c) => `<path d="M60 26c-14-8-32-8-46-2v70c14-6 32-6 46 2z" fill="${c.paper_raised||'#FBF9F4'}" stroke="${c.language}" stroke-width="2"/><path d="M60 26c14-8 32-8 46-2v70c-14-6-32-6-46 2z" fill="${c.paper_raised||'#FBF9F4'}" stroke="${c.language}" stroke-width="2"/><line x1="24" y1="40" x2="50" y2="36" stroke="${c.ink}" stroke-width="1.4" opacity=".4"/><line x1="24" y1="50" x2="50" y2="46" stroke="${c.ink}" stroke-width="1.4" opacity=".4"/><line x1="70" y1="36" x2="96" y2="40" stroke="${c.ink}" stroke-width="1.4" opacity=".4"/><line x1="70" y1="46" x2="96" y2="50" stroke="${c.ink}" stroke-width="1.4" opacity=".4"/>`,
+  };
+
+  const FALLBACK_ICON = (c) => `<circle cx="60" cy="60" r="34" fill="${c.mid}" opacity=".35"/><text x="60" y="70" text-anchor="middle" font-size="34" font-family="Fraunces">?</text>`;
+
+  const PALETTES = {
+    science:  { ink:"#23241F", mid:"#3F6B4F", dark:"#2E5039", blue:"#3B5A8A", gold:"#C89B3C", wrong:"#A8432F", science:"#3F6B4F", history:"#8A4A2E", language:"#6B4A8A", math:"#3B5A8A" },
+    math:     { ink:"#23241F", mid:"#3B5A8A", dark:"#2A4066", blue:"#3B5A8A", gold:"#C89B3C", wrong:"#A8432F", science:"#3F6B4F", history:"#8A4A2E", language:"#6B4A8A", math:"#3B5A8A" },
+    history:  { ink:"#23241F", mid:"#8A4A2E", dark:"#6B3A24", blue:"#3B5A8A", gold:"#C89B3C", wrong:"#A8432F", science:"#3F6B4F", history:"#8A4A2E", language:"#6B4A8A", math:"#3B5A8A" },
+    language: { ink:"#23241F", mid:"#6B4A8A", dark:"#4E3566", blue:"#3B5A8A", gold:"#C89B3C", wrong:"#A8432F", science:"#3F6B4F", history:"#8A4A2E", language:"#6B4A8A", math:"#3B5A8A" }
+  };
+
+  function iconSVG(keyword, category){
+    const c = PALETTES[category] || PALETTES.science;
+    const body = ICONS[keyword] ? ICONS[keyword](c) : FALLBACK_ICON(c);
+    const bg = category + "-tint";
+    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${keyword}">
+      <rect width="120" height="120" fill="var(--${bg})"/>
+      ${body}
+    </svg>`;
+  }
+
+  /* =========================================================
+     PUZZLE DATA
+     Each puzzle: 4 clue keywords (each maps to a hand-drawn SVG
+     above), the answer, category, difficulty, an explanation
+     shown after solving, and an optional hint.
+     ========================================================= */
+  const PUZZLES = [
+    {
+      category: "science",
+      answer: "PHOTOSYNTHESIS",
+      keywords: ["leaf close up", "sunlight through trees", "water droplet", "soil garden"],
+      hint: "The process plants use to make their own food.",
+      explain: "Photosynthesis is how plants turn sunlight, water, and carbon dioxide into glucose (food) and oxygen. It happens mostly in the leaves, inside structures called chloroplasts."
+    },
+    {
+      category: "science",
+      answer: "VOLCANO",
+      keywords: ["lava flow", "mountain smoke", "ash cloud", "molten rock"],
+      hint: "A landform that can erupt with molten rock.",
+      explain: "A volcano is an opening in Earth's crust that lets hot magma, ash, and gases escape. When magma reaches the surface, it's called lava."
+    },
+    {
+      category: "science",
+      answer: "GRAVITY",
+      keywords: ["apple falling", "planet orbit", "falling water", "astronaut floating"],
+      hint: "The force that pulls objects toward each other.",
+      explain: "Gravity is the force that attracts two bodies toward each other. It's why objects fall to the ground and why planets stay in orbit around the sun."
+    },
+    {
+      category: "math",
+      answer: "SYMMETRY",
+      keywords: ["brick wall texture", "zebra stripes", "tile floor geometric", "honeycomb"],
+      hint: "A repeated arrangement you can predict.",
+      explain: "A pattern is a repeated or predictable arrangement of numbers, shapes, or objects. Recognizing patterns is a core math skill used in sequences and algebra."
+    },
+    {
+      category: "history",
+      answer: "PYRAMID",
+      keywords: ["egypt desert monument", "ancient stone structure", "sphinx statue", "hieroglyphics wall"],
+      hint: "An ancient tomb structure built in Egypt.",
+      explain: "Pyramids were massive stone tombs built by ancient Egyptians for their pharaohs, designed to protect the ruler's body and treasures for the afterlife."
+    },
+    {
+      category: "history",
+      answer: "EXPLORER",
+      keywords: ["old sailing ship", "antique compass map", "world globe vintage", "telescope ocean"],
+      hint: "Someone who travels to discover new lands.",
+      explain: "Explorers were people who traveled to unknown regions to map new territory, trade routes, and resources — figures like Magellan and Columbus changed world history through their voyages."
+    },
+    {
+      category: "history",
+      answer: "CASTLE",
+      keywords: ["medieval fortress", "stone tower europe", "drawbridge moat", "knight armor"],
+      hint: "A fortified home for medieval royalty.",
+      explain: "Castles were fortified structures built in the Middle Ages to protect nobility and control territory, featuring thick walls, towers, and often a moat."
+    },
+    {
+      category: "language",
+      answer: "METAPHOR",
+      keywords: ["heart shaped stone", "stormy ocean waves", "burning candle flame", "open book pages"],
+      hint: "A figure of speech comparing two unlike things without 'like' or 'as'.",
+      explain: "A metaphor directly states that one thing IS another to create meaning, like 'time is a thief.' It's different from a simile, which uses 'like' or 'as.'"
+    },
+    {
+      category: "language",
+      answer: "DIALOGUE",
+      keywords: ["two people talking", "speech bubble chat", "microphone conversation", "open quotation marks"],
+      hint: "Conversation written between characters in a story.",
+      explain: "Dialogue is the conversation between two or more characters in a written work, usually marked with quotation marks, used to reveal character and move the plot forward."
+    },
+    {
+      category: "language",
+      answer: "PROVERB",
+      keywords: ["old wise elder", "sunrise wisdom", "ancient scroll", "handshake agreement"],
+      hint: "A short traditional saying that gives advice.",
+      explain: "A proverb is a short, well-known saying that expresses a common truth or piece of advice, often passed down through generations — like 'the early bird catches the worm.'"
+    }
+  ];
+
+  const CATEGORY_LABEL = { science:"Science", math:"Math", history:"History", language:"Filipino / English" };
+  const CATEGORY_ICON = { science:"🌱", math:"📐", history:"🏛", language:"📖" };
+  const PUZZLES_PER_LEVEL = 3;
+  const POINTS_BASE = 10;
+  const POINTS_HINT_PENALTY = 3;
+  const POINTS_STREAK_BONUS = 2;
+
+  /* =========================================================
+     STATE
+     ========================================================= */
+  let state = {
+    order: [],          // shuffled puzzle indices for this session
+    puzzleCursor: 0,
+    points: 0,
+    streak: 0,
+    level: 1,
+    solvedThisLevel: 0,
+    currentPuzzle: null,
+    currentLetters: [],   // shuffled letter bank objects {char, used}
+    currentSlots: [],     // array of chars filled so far, "" = empty
+    hintUsedThisPuzzle: false,
+    locked: false         // true while submit/reveal animation is running
+  };
+
+  /* =========================================================
+     DOM refs
+     ========================================================= */
+  const $ = (id) => document.getElementById(id);
+  const pointsDisplay = $("pointsDisplay");
+  const streakDisplay = $("streakDisplay");
+  const levelLabel = $("levelLabel");
+  const levelProgressLabel = $("levelProgressLabel");
+  const levelFill = $("levelFill");
+  const categoryTag = $("categoryTag");
+  const specimenIndex = $("specimenIndex");
+  const imageGrid = $("imageGrid");
+  const answerRow = $("answerRow");
+  const letterBank = $("letterBank");
+  const hintBtn = $("hintBtn");
+  const hintBox = $("hintBox");
+  const submitBtn = $("submitBtn");
+  const clearBtn = $("clearBtn");
+  const explainDrawer = $("explainDrawer");
+  const explainAnswer = $("explainAnswer");
+  const explainText = $("explainText");
+  const nextBtn = $("nextBtn");
+  const revealOverlay = $("revealOverlay");
+  const stampEl = $("stampEl");
+  const pointToast = $("pointToast");
+  const levelUpScrim = $("levelUpScrim");
+  const levelUpBadge = $("levelUpBadge");
+  const levelUpText = $("levelUpText");
+  const levelUpContinue = $("levelUpContinue");
+  const cardWrap = $("cardWrap");
+
+  /* =========================================================
+     UTILITIES
+     ========================================================= */
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function buildLetterBank(word){
+    // letters of the answer, shuffled, plus a few distractor letters
+    // so the bank isn't trivially "every tile belongs in the word".
+    const letters = word.split("").map((c, i) => ({ id: "w"+i, char: c, used:false, isAnswerLetter:true }));
+    const distractorPool = "ETAOINSHRDLU".split("").filter(c => !word.includes(c));
+    const distractorCount = Math.min(4, Math.max(2, Math.floor(word.length * 0.3)));
+    const distractors = shuffle(distractorPool).slice(0, distractorCount)
+      .map((c, i) => ({ id:"d"+i, char:c, used:false, isAnswerLetter:false }));
+    return shuffle(letters.concat(distractors));
+  }
+
+  /* =========================================================
+     RENDER: puzzle card
+     ========================================================= */
+  function loadPuzzle(puzzleIndex){
+    const p = PUZZLES[puzzleIndex];
+    state.currentPuzzle = p;
+    state.currentLetters = buildLetterBank(p.answer);
+    state.currentSlots = new Array(p.answer.length).fill("");
+    state.hintUsedThisPuzzle = false;
+    state.locked = false;
+
+    // category tag
+    categoryTag.textContent = CATEGORY_ICON[p.category] + "  " + CATEGORY_LABEL[p.category];
+    categoryTag.className = "category-tag " + p.category;
+    // specimen index number (cosmetic, ties to the field-notebook concept)
+    const num = String(state.puzzleCursor + 1).padStart(3, "0");
+    specimenIndex.textContent = "SPECIMEN NO. " + num;
+
+    // reset visual state
+    explainDrawer.classList.remove("open");
+    revealOverlay.classList.remove("show");
+    stampEl.classList.remove("slam", "correct", "wrong");
+    hintBox.classList.remove("visible");
+    hintBox.textContent = "";
+    submitBtn.disabled = true;
+
+    renderImages(p);
+    renderAnswerRow();
+    renderLetterBank();
+  }
+
+  function renderImages(p){
+    imageGrid.innerHTML = "";
+    p.keywords.forEach((kw) => {
+      const cell = document.createElement("div");
+      cell.className = "image-cell";
+      cell.innerHTML = iconSVG(kw, p.category);
+
+      const caption = document.createElement("div");
+      caption.className = "cell-caption";
+      caption.textContent = kw;
+      cell.appendChild(caption);
+
+      imageGrid.appendChild(cell);
+    });
+  }
+
+  function renderAnswerRow(){
+    answerRow.innerHTML = "";
+    state.currentSlots.forEach((char) => {
+      const slot = document.createElement("div");
+      slot.className = "answer-slot";
+      slot.textContent = char;
+      answerRow.appendChild(slot);
+    });
+  }
+
+  function renderLetterBank(){
+    letterBank.innerHTML = "";
+    state.currentLetters.forEach((tile) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "letter-tile";
+      btn.textContent = tile.char;
+      btn.disabled = tile.used;
+      btn.setAttribute("aria-label", "Letter " + tile.char);
+      btn.addEventListener("click", () => onLetterTap(tile.id));
+      letterBank.appendChild(btn);
+    });
+  }
+
+  /* =========================================================
+     INTERACTION: letter tiles
+     ========================================================= */
+  function onLetterTap(tileId){
+    if(state.locked) return;
+    const emptyIndex = state.currentSlots.findIndex(c => c === "");
+    if(emptyIndex === -1) return; // slots full
+
+    const tile = state.currentLetters.find(t => t.id === tileId);
+    if(!tile || tile.used) return;
+    tile.used = true;
+    state.currentSlots[emptyIndex] = tile.char;
+    tile.slotIndex = emptyIndex;
+
+    renderAnswerRow();
+    // flag the just-filled slot for the pop animation
+    const slots = answerRow.querySelectorAll(".answer-slot");
+    if(slots[emptyIndex]) slots[emptyIndex].classList.add("filled");
+
+    renderLetterBank();
+    submitBtn.disabled = state.currentSlots.includes("");
+  }
+
+  // Tapping a filled answer slot returns that letter to the bank —
+  // added because the old build only let you clear ALL letters at
+  // once, which is punishing when you just want to fix one mistake.
+  answerRow.addEventListener("click", (e) => {
+    if(state.locked) return;
+    const slot = e.target.closest(".answer-slot");
+    if(!slot) return;
+    const idx = Array.from(answerRow.children).indexOf(slot);
+    if(idx === -1 || state.currentSlots[idx] === "") return;
+
+    const tile = state.currentLetters.find(t => t.slotIndex === idx);
+    if(tile){ tile.used = false; delete tile.slotIndex; }
+    state.currentSlots[idx] = "";
+
+    renderAnswerRow();
+    renderLetterBank();
+    submitBtn.disabled = state.currentSlots.includes("");
+  });
+
+  clearBtn.addEventListener("click", () => {
+    if(state.locked) return;
+    state.currentLetters.forEach(t => { t.used = false; delete t.slotIndex; });
+    state.currentSlots = new Array(state.currentPuzzle.answer.length).fill("");
+    renderAnswerRow();
+    renderLetterBank();
+    submitBtn.disabled = true;
+  });
+
+  /* =========================================================
+     HINT
+     ========================================================= */
+  hintBtn.addEventListener("click", () => {
+    if(state.locked) return;
+    state.hintUsedThisPuzzle = true;
+    hintBox.textContent = "💡 " + state.currentPuzzle.hint;
+    hintBox.classList.add("visible");
+    hintBtn.disabled = true;
+  });
+
+  /* =========================================================
+     SUBMIT / REVEAL
+     ========================================================= */
+  submitBtn.addEventListener("click", () => {
+    if(state.locked) return;
+    const guess = state.currentSlots.join("");
+    const isCorrect = guess === state.currentPuzzle.answer;
+    state.locked = true;
+    submitBtn.disabled = true;
+    hintBtn.disabled = true;
+
+    if(isCorrect){
+      handleCorrect();
+    } else {
+      handleWrong();
+    }
+  });
+
+  function handleCorrect(){
+    // score
+    let earned = POINTS_BASE;
+    if(state.hintUsedThisPuzzle) earned -= POINTS_HINT_PENALTY;
+    state.streak += 1;
+    if(state.streak >= 3) earned += POINTS_STREAK_BONUS;
+    earned = Math.max(2, earned);
+
+    state.points += earned;
+    state.solvedThisLevel += 1;
+
+    updateHUD();
+    showPointToast("+" + earned + " pts");
+    flashSlots("correct-flash");
+    fireStamp("correct");
+    setTimeout(() => {
+      revealExplanation();
+    }, 550);
+
+    checkLevelProgress();
+  }
+
+  function handleWrong(){
+    state.streak = 0;
+    updateHUD();
+    flashSlots("wrong-flash");
+    fireStamp("wrong");
+
+    // let the player try again after the shake — unlock, keep letters as-is
+    setTimeout(() => {
+      state.locked = false;
+      submitBtn.disabled = state.currentSlots.includes("");
+      hintBtn.disabled = state.hintUsedThisPuzzle;
+      revealOverlay.classList.remove("show");
+      stampEl.classList.remove("slam", "wrong");
+      answerRow.querySelectorAll(".answer-slot").forEach(s => s.classList.remove("wrong-flash"));
+    }, 900);
+  }
+
+  function flashSlots(className){
+    answerRow.querySelectorAll(".answer-slot").forEach(s => s.classList.add(className));
+  }
+
+  function fireStamp(kind){
+    stampEl.textContent = kind === "correct" ? "Correct" : "Try again";
+    stampEl.className = "stamp " + kind;
+    revealOverlay.classList.add("show");
+    // force reflow so the animation restarts cleanly
+    void stampEl.offsetWidth;
+    stampEl.classList.add("slam");
+  }
+
+  function revealExplanation(){
+    const p = state.currentPuzzle;
+    const colorClass = p.category + "-color";
+    explainAnswer.innerHTML = 'The answer: <span class="' + colorClass + '">' + p.answer + '</span>';
+    explainText.textContent = p.explain;
+    explainDrawer.classList.add("open");
+  }
+
+  nextBtn.addEventListener("click", () => {
+    advancePuzzle();
+  });
+
+  function advancePuzzle(){
+    state.puzzleCursor += 1;
+    if(state.puzzleCursor >= state.order.length){
+      // reshuffle and loop the deck so the game never dead-ends
+      state.order = shuffle(state.order);
+      state.puzzleCursor = 0;
+    }
+    loadPuzzle(state.order[state.puzzleCursor]);
+  }
+
+  /* =========================================================
+     HUD / LEVEL PROGRESS
+     ========================================================= */
+  function updateHUD(){
+    pointsDisplay.textContent = state.points;
+    streakDisplay.textContent = "🔥 " + state.streak;
+  }
+
+  function checkLevelProgress(){
+    levelProgressLabel.textContent = state.solvedThisLevel + " / " + PUZZLES_PER_LEVEL + " solved";
+    const pct = Math.min(100, Math.round((state.solvedThisLevel / PUZZLES_PER_LEVEL) * 100));
+    levelFill.style.width = pct + "%";
+
+    if(state.solvedThisLevel >= PUZZLES_PER_LEVEL){
+      setTimeout(() => triggerLevelUp(), 700);
+    }
+  }
+
+  function triggerLevelUp(){
+    state.level += 1;
+    state.solvedThisLevel = 0;
+    levelLabel.textContent = "Level " + state.level;
+    levelProgressLabel.textContent = "0 / " + PUZZLES_PER_LEVEL + " solved";
+    levelFill.style.width = "0%";
+
+    levelUpBadge.textContent = state.level;
+    const messages = {
+      2: "New categories unlocked: History and Filipino / English specimens now in rotation.",
+      3: "Your streak bonus is now active more often — keep the answers coming without a miss.",
+    };
+    levelUpText.textContent = messages[state.level] || ("You've reached Level " + state.level + ". Keep decoding.");
+    levelUpScrim.classList.add("show");
+  }
+
+  levelUpContinue.addEventListener("click", () => {
+    levelUpScrim.classList.remove("show");
+  });
+
+  function showPointToast(text){
+    pointToast.textContent = text;
+    pointToast.classList.add("show");
+    setTimeout(() => pointToast.classList.remove("show"), 1400);
+  }
+
+  /* =========================================================
+     BOOT
+     ========================================================= */
+  function init(){
+    state.order = shuffle(PUZZLES.map((_, i) => i));
+    state.puzzleCursor = 0;
+    updateHUD();
+    levelFill.style.width = "0%";
+    loadPuzzle(state.order[0]);
+  }
+
+  init();
+})();
+</script>
+
+</body>
+</html>
